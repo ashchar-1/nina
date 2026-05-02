@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Feliz Cumpleaños Nina!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #26001b 0%, #000000 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 215, 0, 0.8);
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            letter-spacing: 2px;
+            opacity: 0;
+            animation: fadeInPulse 3s forwards;
+            animation-delay: 5s; /* Aparece después del espectáculo */
+        }
+        @keyframes fadeInPulse {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="birthdayCanvas"></canvas>
+    <div id="instructions">Pasa el ratón o toca la pantalla</div>
+
+    <script>
+        const canvas = document.getElementById('birthdayCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray = [];
+        let timer = 0; // Temporizador para controlar las fases de la animación
+
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 90
+        }
+
+        window.addEventListener('mousemove', function(event){
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+        window.addEventListener('touchmove', function(event){
+            mouse.x = event.touches[0].clientX;
+            mouse.y = event.touches[0].clientY;
+        });
+        window.addEventListener('mouseleave', function(){
+            mouse.x = null;
+            mouse.y = null;
+        });
+        window.addEventListener('touchend', function(){
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // 1. Dibujar el texto oculto con una fuente más gruesa para mayor legibilidad
+        ctx.fillStyle = 'white';
+        let fontSize = Math.min(canvas.width / 14, 60);
+        ctx.font = '900 ' + fontSize + 'px "Arial Black", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillText('FELIZ CUMPLEAÑOS', canvas.width / 2, canvas.height / 2 - (fontSize));
+        
+        let fontNameSize = Math.min(canvas.width / 6, 140);
+        ctx.font = '900 ' + fontNameSize + 'px "Arial Black", Arial, sans-serif';
+        ctx.fillText('NINA', canvas.width / 2, canvas.height / 2 + (fontNameSize/1.8));
+
+        const textCoordinates = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Clase Partícula
+        class Particle {
+            constructor(x, y){
+                this.baseX = x;
+                this.baseY = y;
+                
+                // Posición inicial: Abajo en el centro (Para el cohete)
+                this.x = canvas.width / 2;
+                this.y = canvas.height + 50;
+                
+                // Velocidad explosiva inicial
+                this.vx = (Math.random() - 0.5) * 12; // Dispersión horizontal
+                this.vy = (Math.random() * -18) - 5;  // Disparo hacia arriba
+                
+                // Tamaño y densidad
+                this.size = Math.random() * 2.5 + 1.2;
+                this.density = (Math.random() * 40) + 10;
+                
+                // Colores dorados muy brillantes
+                let hue = Math.random() * 25 + 35; 
+                let lightness = Math.random() * 30 + 60; // Más luz para leer mejor
+                this.color = `hsl(${hue}, 100%, ${lightness}%)`;
+                
+                // Velocidad a la que se unen para formar la letra
+                this.ease = Math.random() * 0.04 + 0.03;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            update() {
+                // FASE 1: Cohete subiendo (0 a 60 frames)
+                if (timer < 60) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                } 
+                // FASE 2: Explosión y suspensión (60 a 200 frames)
+                else if (timer < 200) {
+                    this.vx *= 0.94; // Fricción horizontal
+                    this.vy *= 0.94; // Fricción vertical
+                    this.x += this.vx * 2;
+                    this.y += this.vy * 2;
+                    this.vy += 0.08; // Gravedad sutil cayendo
+                } 
+                // FASE 3: Ensamblaje mágico y estado interactivo
+                else {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < mouse.radius) {
+                        // Interacción al pasar el ratón/dedo
+                        let forceDirectionX = dx / distance;
+                        let forceDirectionY = dy / distance;
+                        let force = (mouse.radius - distance) / mouse.radius;
+                        this.x -= forceDirectionX * force * this.density;
+                        this.y -= forceDirectionY * force * this.density;
+                    } else {
+                        // Retorno veloz a su posición base para formar la letra
+                        if (this.x !== this.baseX) {
+                            this.x -= (this.x - this.baseX) * this.ease;
+                        }
+                        if (this.y !== this.baseY) {
+                            this.y -= (this.y - this.baseY) * this.ease;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Inicializar
+        function init() {
+            particlesArray = [];
+            // Un gap menor (3 o 4) aumenta drásticamente la densidad y la legibilidad
+            let gap = Math.min(canvas.width, canvas.height) < 600 ? 3 : 4; 
+
+            for (let y = 0, y2 = textCoordinates.height; y < y2; y += gap) {
+                for (let x = 0, x2 = textCoordinates.width; x < x2; x += gap) {
+                    if (textCoordinates.data[(y * 4 * textCoordinates.width) + (x * 4) + 3] > 128) {
+                        particlesArray.push(new Particle(x, y));
+                    }
+                }
+            }
+        }
+
+        // Animación en bucle
+        function animate() {
+            timer++;
+            
+            // Truco visual: Durante el espectáculo el rastro es largo y borroso.
+            // Cuando se forma el texto, el rastro es más corto para que las letras se lean perfectas.
+            if (timer < 220) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; 
+            } else {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; 
+            }
+            
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].draw();
+                particlesArray[i].update();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        // Recalcular al cambiar el tamaño de la ventana
+        window.addEventListener('resize', function() {
+            location.reload(); 
+        });
+
+    </script>
+</body>
+</html>
